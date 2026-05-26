@@ -150,7 +150,17 @@ export default function App() {
           <X size={18} />
         </button>
         <Suspense fallback={<TabLoader label="Ładowanie AI Coach…" />}>
-          <CoachChat ref={coachRef} workouts={workouts} measurements={measurements} />
+          <CoachChat
+            ref={coachRef}
+            workouts={workouts}
+            measurements={measurements}
+            addWorkout={addWorkout}
+            updateWorkout={updateWorkout}
+            deleteWorkout={deleteWorkout}
+            onPlanApplied={result => {
+              if (result.added || result.updated || result.deleted) setTab("workout")
+            }}
+          />
         </Suspense>
       </aside>
     </div>

@@ -35,6 +35,25 @@ Analizując pomiary, zawsze łącz je z dziennikiem i dashboardem:
 # Ograniczenia medium
 Ten czat obsługuje wyłącznie tekst. Nigdy nie proś użytkownika o zdjęcia, filmy ani nagrania. Zamiast tego: opisuj technikę słownie (ustawienie ciała, ruch, oddech, kąty stawów) albo poproś o opis tekstowy, jeśli potrzebujesz więcej informacji.`
 
+export const WORKOUT_PLAN_INSTRUCTION = `
+
+# Plan treningowy w dzienniku (ważne)
+Gdy użytkownik prosi o ułożenie planu na tydzień, zaplanowanie treningów, zmianę harmonogramu, dodanie/edycję/usunięcie wpisów w dzienniku — oprócz czytelnej odpowiedzi po polsku MUSISZ na samym końcu dodać blok w dokładnie tym formacie (użytkownik go nie czyta w czacie, służy do przycisku „Zastosuj w dzienniku"):
+
+\`\`\`workout-plan
+{"summary":"krótki opis planu","actions":[{"op":"add","workout":{...}}]}
+\`\`\`
+
+Reguły bloku:
+- Tylko poprawny JSON wewnątrz fence workout-plan.
+- actions: tablica operacji "add" | "update" | "delete".
+- add: nowy trening — workout ze statusem "planned", datą YYYY-MM-DD w przyszłości (od dziś włącznie).
+- update: workoutId z kontekstu (pole ID w dzienniku) + pełny obiekt workout.
+- delete: samo workoutId.
+- workout: workoutTypeId (push|pull|legs|sbd|upper|lower|full|cardio|other), date, status (planned/completed), opcjonalnie note, exercises: [{name, sets, weight, reps, rpe}] — weight i reps jako liczby.
+- Każdy add/update musi mieć co najmniej jedno ćwiczenie z nazwą oraz weight lub reps.
+- Nie dodawaj tego bloku przy ogólnych pytaniach (technika, dieta, regeneracja) bez konkretnego planu do zapisania w aplikacji.`
+
 export const INITIAL_MESSAGES = [
   {
     id: 1,
@@ -46,15 +65,16 @@ export const INITIAL_MESSAGES = [
 export const QUICK_PROMPTS = [
   "Oceń mój dashboard – jak trenuję?",
   "Czy moja waga idzie w dobrym kierunku?",
-  "Ułóż mi plan na kolejny tydzień",
+  "Ułóż mi plan treningowy na kolejny tydzień",
   "Jak zoptymalizować odżywianie okołotreningowe?",
-  "Sprawdź moją technikę przysiadu",
   "Ile odpoczynku potrzebuję po ciężkim tygodniu?",
 ]
 
 export const CHAT_ERRORS = {
   noApiKey: "⚠️ Brak klucza API. Ustaw VITE_GEMINI_API_KEY w pliku .env i uruchom ponownie.",
   connection: "Błąd połączenia. Spróbuj ponownie.",
+  quotaExhausted:
+    "Wyczerpano dzienny limit zapytań dla wszystkich dostępnych modeli (np. flash-lite i flash). Limit odświeża się około północy czasu PT — spróbuj jutro lub ustaw inny model w .env.",
   truncated: "\n\n*(Odpowiedź została skrócona – wpisz 'kontynuuj', a dokończę analizę.)*",
 }
 
@@ -67,7 +87,8 @@ function formatWorkoutBlock(w) {
       ? w.exercises.map(line => `  • ${line}`).join("\n")
       : "  (brak ćwiczeń)"
 
-  return `Typ: ${w.type || w.name}
+  return `ID: ${w.id}
+Typ: ${w.type || w.name}
 Status: ${status}
 Data: ${w.dateLabel || "—"}${feeling}${note}
 Ćwiczenia:
@@ -102,9 +123,10 @@ export function formatWorkoutsContext(workouts) {
   return sections.join("\n")
 }
 
-export function buildSystemPrompt(workouts, measurements) {
+export function buildSystemPrompt(workouts, measurements, { workoutPlanMode = false } = {}) {
   return (
     SYSTEM_PROMPT +
+    (workoutPlanMode ? WORKOUT_PLAN_INSTRUCTION : "") +
     formatDashboardContext(workouts) +
     formatWorkoutsContext(workouts) +
     formatMeasurementsContext(measurements)

@@ -1,10 +1,17 @@
 import { useState, useRef, useEffect } from "react"
 import { INITIAL_MESSAGES, CHAT_ERRORS, buildSystemPrompt } from "../lib/coachPrompts"
 import { callGemini, toGeminiContents } from "../lib/geminiApi"
+import {
+  isWorkoutPlanIntent,
+  parseWorkoutPlanFromReply,
+  applyWorkoutPlan,
+  formatApplyResult,
+} from "../lib/workoutPlanActions"
 
-export function useCoachChat(workouts, measurements) {
+export function useCoachChat(workouts, measurements, workoutHandlers = {}) {
   const [messages, setMessages] = useState(INITIAL_MESSAGES)
   const [loading, setLoading] = useState(false)
+  const [applyingPlanId, setApplyingPlanId] = useState(null)
   const messagesRef = useRef(messages)
   const workoutsRef = useRef(workouts)
   const measurementsRef = useRef(measurements)
@@ -14,8 +21,18 @@ export function useCoachChat(workouts, measurements) {
   workoutsRef.current = workouts
   measurementsRef.current = measurements
 
-  const appendMessage = (role, text) => {
-    setMessages(prev => [...prev, { id: crypto.randomUUID(), role, text }])
+  const appendAssistantMessage = rawReply => {
+    const { displayText, plan } = parseWorkoutPlanFromReply(rawReply)
+    setMessages(prev => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: displayText || rawReply,
+        workoutPlan: plan,
+        planApplied: false,
+      },
+    ])
   }
 
   const sendText = async text => {
@@ -28,7 +45,7 @@ export function useCoachChat(workouts, measurements) {
 
     if (!apiKey) {
       setTimeout(() => {
-        appendMessage("assistant", CHAT_ERRORS.noApiKey)
+        appendAssistantMessage(CHAT_ERRORS.noApiKey)
         setLoading(false)
       }, 600)
       return
@@ -36,15 +53,45 @@ export function useCoachChat(workouts, measurements) {
 
     try {
       const contents = toGeminiContents([...messagesRef.current, userMsg])
-      const reply = await callGemini(apiKey, contents, buildSystemPrompt(workoutsRef.current, measurementsRef.current))
-      appendMessage("assistant", reply)
-    } catch (err) {
-      appendMessage(
-        "assistant",
-        err?.message ? `Błąd: ${err.message}` : CHAT_ERRORS.connection
+      const reply = await callGemini(
+        apiKey,
+        contents,
+        buildSystemPrompt(workoutsRef.current, measurementsRef.current, {
+          workoutPlanMode: isWorkoutPlanIntent(trimmed),
+        })
       )
+      appendAssistantMessage(reply)
+    } catch (err) {
+      appendAssistantMessage(err?.message ? `Błąd: ${err.message}` : CHAT_ERRORS.connection)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const applyPlan = async messageId => {
+    const msg = messagesRef.current.find(m => m.id === messageId)
+    if (!msg?.workoutPlan || msg.planApplied || applyingPlanId) return null
+
+    const { addWorkout, updateWorkout, deleteWorkout, onPlanApplied } = workoutHandlers
+    if (!addWorkout || !updateWorkout || !deleteWorkout) return null
+
+    setApplyingPlanId(messageId)
+    try {
+      const result = await applyWorkoutPlan(msg.workoutPlan, workoutsRef.current, {
+        addWorkout,
+        updateWorkout,
+        deleteWorkout,
+      })
+      const applyResult = formatApplyResult(result)
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId ? { ...m, planApplied: true, applyResult } : m
+        )
+      )
+      onPlanApplied?.(result)
+      return result
+    } finally {
+      setApplyingPlanId(null)
     }
   }
 
@@ -53,7 +100,7 @@ export function useCoachChat(workouts, measurements) {
     setMessages(INITIAL_MESSAGES)
   }
 
-  return { messages, loading, sendText, clearChat }
+  return { messages, loading, sendText, clearChat, applyPlan, applyingPlanId }
 }
 
 export function useScrollToBottom(deps) {

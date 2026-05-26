@@ -5,13 +5,21 @@ import { Input } from "./ui/input"
 import { ScrollArea } from "./ui/scroll-area"
 import { Send, Bot, RefreshCw } from "lucide-react"
 import { QUICK_PROMPTS } from "../lib/coachPrompts"
+import { WORKOUT_PLAN_QUICK_PROMPTS } from "../lib/workoutPlanActions"
 import { useCoachChat, useScrollToBottom } from "../hooks/useCoachChat"
 import ChatMessage from "./chat/ChatMessage"
 import TypingIndicator from "./chat/TypingIndicator"
 
-const CoachChat = forwardRef(function CoachChat({ workouts = [], measurements = [] }, ref) {
+const CoachChat = forwardRef(function CoachChat(
+  { workouts = [], measurements = [], addWorkout, updateWorkout, deleteWorkout, onPlanApplied },
+  ref
+) {
   const [input, setInput] = useState("")
-  const { messages, loading, sendText, clearChat } = useCoachChat(workouts, measurements)
+  const { messages, loading, sendText, clearChat, applyPlan, applyingPlanId } = useCoachChat(
+    workouts,
+    measurements,
+    { addWorkout, updateWorkout, deleteWorkout, onPlanApplied }
+  )
   const bottomRef = useScrollToBottom([messages, loading])
 
   useImperativeHandle(ref, () => ({ sendText }))
@@ -21,6 +29,18 @@ const CoachChat = forwardRef(function CoachChat({ workouts = [], measurements = 
     if (!text) return
     setInput("")
     sendText(text)
+  }
+
+  const handleQuickPrompt = prompt => {
+    if (WORKOUT_PLAN_QUICK_PROMPTS.includes(prompt)) {
+      sendText(prompt)
+      return
+    }
+    setInput(prompt)
+  }
+
+  const handleApplyPlan = async messageId => {
+    await applyPlan(messageId)
   }
 
   return (
@@ -51,7 +71,12 @@ const CoachChat = forwardRef(function CoachChat({ workouts = [], measurements = 
         <ScrollArea className="flex-1 min-h-0 p-4">
           <div className="space-y-4">
             {messages.map(m => (
-              <ChatMessage key={m.id} message={m} />
+              <ChatMessage
+                key={m.id}
+                message={m}
+                onApplyPlan={handleApplyPlan}
+                applyingPlan={applyingPlanId === m.id}
+              />
             ))}
             {loading && <TypingIndicator />}
             <div ref={bottomRef} />
@@ -62,8 +87,9 @@ const CoachChat = forwardRef(function CoachChat({ workouts = [], measurements = 
             <button
               key={q}
               type="button"
-              onClick={() => setInput(q)}
-              className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-accent text-muted-foreground hover:text-foreground transition-colors font-medium shrink-0"
+              onClick={() => handleQuickPrompt(q)}
+              disabled={loading}
+              className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-accent text-muted-foreground hover:text-foreground transition-colors font-medium shrink-0 disabled:opacity-50"
             >
               {q}
             </button>
