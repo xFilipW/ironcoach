@@ -6,19 +6,36 @@ import { ScrollArea } from "./ui/scroll-area"
 import { Send, Bot, RefreshCw } from "lucide-react"
 import { QUICK_PROMPTS } from "../lib/coachPrompts"
 import { WORKOUT_PLAN_QUICK_PROMPTS } from "../lib/workoutPlanActions"
+import { DIET_PLAN_QUICK_PROMPTS } from "../lib/dietPlanActions"
 import { useCoachChat, useScrollToBottom } from "../hooks/useCoachChat"
 import ChatMessage from "./chat/ChatMessage"
 import TypingIndicator from "./chat/TypingIndicator"
 
+const PLAN_QUICK_PROMPTS = [...WORKOUT_PLAN_QUICK_PROMPTS, ...DIET_PLAN_QUICK_PROMPTS]
+
 const CoachChat = forwardRef(function CoachChat(
-  { workouts = [], measurements = [], addWorkout, updateWorkout, deleteWorkout, onPlanApplied },
+  {
+    workouts = [],
+    measurements = [],
+    meals = [],
+    dietProfile = null,
+    addWorkout,
+    updateWorkout,
+    deleteWorkout,
+    addMeal,
+    updateMeal,
+    deleteMeal,
+    onPlanApplied,
+  },
   ref
 ) {
   const [input, setInput] = useState("")
+  const dietContext = { meals, profile: dietProfile }
   const { messages, loading, sendText, clearChat, applyPlan, applyingPlanId } = useCoachChat(
     workouts,
     measurements,
-    { addWorkout, updateWorkout, deleteWorkout, onPlanApplied }
+    dietContext,
+    { addWorkout, updateWorkout, deleteWorkout, addMeal, updateMeal, deleteMeal, onPlanApplied }
   )
   const bottomRef = useScrollToBottom([messages, loading])
 
@@ -32,7 +49,7 @@ const CoachChat = forwardRef(function CoachChat(
   }
 
   const handleQuickPrompt = prompt => {
-    if (WORKOUT_PLAN_QUICK_PROMPTS.includes(prompt)) {
+    if (PLAN_QUICK_PROMPTS.includes(prompt)) {
       sendText(prompt)
       return
     }
@@ -100,7 +117,7 @@ const CoachChat = forwardRef(function CoachChat(
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
-            placeholder="Zapytaj o trening, żywienie, regenerację..."
+            placeholder="Zapytaj o trening, dietę, regenerację..."
             disabled={loading}
             className="flex-1"
           />

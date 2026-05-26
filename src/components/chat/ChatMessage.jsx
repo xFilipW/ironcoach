@@ -1,5 +1,6 @@
-import { Bot, User, CalendarPlus, Check, Loader2 } from "lucide-react"
+import { Bot, User, CalendarPlus, Check, Loader2, UtensilsCrossed } from "lucide-react"
 import { Button } from "../ui/button"
+import { getEffectiveDietPlan } from "../../lib/dietPlanActions"
 
 function FormattedText({ text }) {
   return text.split("\n").map((line, i) => {
@@ -14,8 +15,17 @@ function FormattedText({ text }) {
 
 export default function ChatMessage({ message, onApplyPlan, applyingPlan }) {
   const isUser = message.role === "user"
-  const hasPlan = Boolean(message.workoutPlan?.actions?.length)
+  const hasWorkoutPlan = Boolean(message.workoutPlan?.actions?.length)
+  const effectiveDietPlan = getEffectiveDietPlan(message)
+  const hasDietPlan = Boolean(effectiveDietPlan?.actions?.length)
+  const hasPlan = hasWorkoutPlan || hasDietPlan
   const isApplying = applyingPlan && !message.planApplied
+
+  const planSummary = hasWorkoutPlan ? message.workoutPlan.summary : effectiveDietPlan?.summary
+  const applyLabel = hasWorkoutPlan ? "Zastosuj plan w zakładce Trening" : "Dodaj posiłki do diety"
+  const applyingLabel = hasWorkoutPlan ? "Zapisuję w dzienniku…" : "Zapisuję posiłki…"
+  const appliedLabel = hasWorkoutPlan ? "Zastosowano w dzienniku" : "Zastosowano w diecie"
+  const PlanIcon = hasWorkoutPlan ? CalendarPlus : UtensilsCrossed
 
   return (
     <div className={`message-enter flex gap-3 mb-4 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -36,8 +46,8 @@ export default function ChatMessage({ message, onApplyPlan, applyingPlan }) {
         </div>
         {hasPlan && !isUser && (
           <div className="w-full space-y-1.5">
-            {message.workoutPlan.summary && (
-              <p className="text-[11px] text-muted-foreground px-0.5">{message.workoutPlan.summary}</p>
+            {planSummary && (
+              <p className="text-[11px] text-muted-foreground px-0.5">{planSummary}</p>
             )}
             <Button
               type="button"
@@ -50,17 +60,17 @@ export default function ChatMessage({ message, onApplyPlan, applyingPlan }) {
               {isApplying ? (
                 <>
                   <Loader2 size={14} className="animate-spin" />
-                  Zapisuję w dzienniku…
+                  {applyingLabel}
                 </>
               ) : message.planApplied ? (
                 <>
                   <Check size={14} />
-                  Zastosowano w dzienniku
+                  {appliedLabel}
                 </>
               ) : (
                 <>
-                  <CalendarPlus size={14} />
-                  Zastosuj plan w zakładce Trening
+                  <PlanIcon size={14} />
+                  {applyLabel}
                 </>
               )}
             </Button>

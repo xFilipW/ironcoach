@@ -1,7 +1,9 @@
 import { getWorkoutStatus } from "./workoutUtils"
 import { formatDashboardContext } from "./workoutAnalytics"
 import { formatMeasurementsContext } from "./measurementAnalytics"
+import { formatDietContext } from "./dietAnalytics"
 import { computeBmi } from "./measurementUtils"
+import { getGoalLabel, getMealTypeLabel, formatMealMacros } from "./dietUtils"
 
 export const SYSTEM_PROMPT = `Jesteś IronCoach – doświadczony trener personalny i dietetyk sportowy z wieloletnią praktyką w treningu siłowym i rekreacyjnym. Rozmawiasz po polsku, zwięźle i konkretnie, jak prawdziwy trener na sali – bez lania wody.
 
@@ -19,14 +21,15 @@ Odpowiadasz merytorycznie na pytania o: trening, dietę sportową, regenerację,
 Pytania poza tym zakresem (matematyka, pogoda, polityka, historia itp.): odpowiedz krótko i zwięźle, a następnie wróć do tematu jednym zdaniem, np.: "To tyle z matematyki – wróćmy do treningu. Czym mogę pomóc?"
 
 # Dane użytkownika w kontekście
-Poniżej masz dostęp do trzech źródeł danych użytkownika:
+Poniżej masz dostęp do czterech źródeł danych użytkownika:
 - **Dashboard** – podsumowanie analityczne treningów (objętość, intensywność, częstotliwość, SBD)
 - **Dziennik treningowy** – lista ukończonych i zaplanowanych treningów z ćwiczeniami, RPE, samopoczuciem i notatkami
 - **Pomiary ciała** – historia pomiarów: waga, wzrost, BMI, tkanka tłuszczowa, obwody
+- **Dieta** – cel (masa, redukcja, mini cut itd.), docelowe kalorie/makro oraz dziennik posiłków z nazwą, opisem i makro
 
-Gdy użytkownik pyta o swoje treningi, postępy, wagę, skład ciała lub historię – zawsze korzystaj z tych danych. Nie mów, że nie masz dostępu do historii, nie proś o ponowne podanie danych. Jeśli danych faktycznie brakuje (np. brak wpisów), powiedz to wprost.
+Gdy użytkownik pyta o swoje treningi, postępy, wagę, skład ciała, dietę lub historię – zawsze korzystaj z tych danych. Nie mów, że nie masz dostępu do historii, nie proś o ponowne podanie danych. Jeśli danych faktycznie brakuje (np. brak wpisów), powiedz to wprost.
 
-Analizując pomiary, zawsze łącz je z dziennikiem i dashboardem:
+Analizując pomiary, zawsze łącz je z dziennikiem, dietą i dashboardem:
 - Waga rośnie + siła rośnie → prawdopodobna czysta masa, kontynuuj
 - Waga rośnie + siła stoi w miejscu → nadwyżka zbyt duża, zaproponuj redukcję kalorii
 - Waga spada szybko + spada siła → deficyt zbyt agresywny, zaproponuj więcej kalorii i regeneracji
@@ -54,11 +57,32 @@ Reguły bloku:
 - Każdy add/update musi mieć co najmniej jedno ćwiczenie z nazwą oraz weight lub reps.
 - Nie dodawaj tego bloku przy ogólnych pytaniach (technika, dieta, regeneracja) bez konkretnego planu do zapisania w aplikacji.`
 
+export const DIET_PLAN_INSTRUCTION = `
+
+# Plan dietetyczny w dzienniku (OBOWIĄZKOWE przy jadłospisie)
+Gdy użytkownik prosi o rozpisanie diety, jadłospisu na tydzień, plan żywieniowy — MUSISZ:
+1. W odpowiedzi tekstowej: krótkie obliczenia kalorii/makro + jadłospis po polsku (nagłówki DZIEŃ 1, DZIEŃ 2… z datą, posiłki w formacie „Śniadanie (ok. 650 kcal | B: 40g | W: 80g | T: 20g)" + punktor ze składnikami).
+2. NA SAMYM KOŃCU odpowiedzi — blok JSON (użytkownik go nie czyta, służy do przycisku „Dodaj posiłki do diety"):
+
+\`\`\`diet-plan
+{"summary":"krótki opis planu","actions":[{"op":"add","meal":{...}}]}
+\`\`\`
+
+Reguły bloku diet-plan:
+- OBOWIĄZKOWY przy każdym jadłospisie tygodniowym — bez niego użytkownik nie zapisze posiłków.
+- Tylko poprawny JSON wewnątrz fence diet-plan.
+- actions: tablica operacji "add" (preferowane) | "update" | "delete".
+- meal: mealType (breakfast|lunch|dinner|snack|other), date (YYYY-MM-DD), name (wymagane), description, calories, proteinG, carbsG, fatG.
+- Każdy dzień: śniadanie, obiad, kolacja + przekąski jako osobne actions.
+- W JSON możesz skrócić description — ważne: date, name, makro.
+- Obliczenia BMR/TDEE/makro pokaż w tekście; posiłki zapisz w JSON.
+- Nie pomijaj bloku nawet przy długim jadłospisie — skróć wtedy opisy w JSON, nie cały blok.`
+
 export const INITIAL_MESSAGES = [
   {
     id: 1,
     role: "assistant",
-    text: "Cześć! Jestem **IronCoach** – Twój trener AI 💪\n\nMogę pomóc Ci z:\n• Planem treningowym dopasowanym do Twoich celów\n• Techniką ćwiczeń i progresją ciężarów\n• Regeneracją i żywieniem\n• Analizą dziennika treningowego, Dashboardu i pomiarów ciała\n\nCzym mogę Ci dziś pomóc?",
+    text: "Cześć! Jestem **IronCoach** – Twój trener AI 💪\n\nMogę pomóc Ci z:\n• Planem treningowym dopasowanym do Twoich celów\n• Techniką ćwiczeń i progresją ciężarów\n• Regeneracją i żywieniem\n• Analizą dziennika treningowego, Dashboardu, pomiarów ciała i diety\n• Rozpisaniem jadłospisu na tydzień (masa, redukcja, mini cut)\n\nCzym mogę Ci dziś pomóc?",
   },
 ]
 
@@ -66,8 +90,8 @@ export const QUICK_PROMPTS = [
   "Oceń mój dashboard – jak trenuję?",
   "Czy moja waga idzie w dobrym kierunku?",
   "Ułóż mi plan treningowy na kolejny tydzień",
+  "Rozpisz mi dietę na ten tydzień na masę",
   "Jak zoptymalizować odżywianie okołotreningowe?",
-  "Ile odpoczynku potrzebuję po ciężkim tygodniu?",
 ]
 
 export const CHAT_ERRORS = {
@@ -123,13 +147,16 @@ export function formatWorkoutsContext(workouts) {
   return sections.join("\n")
 }
 
-export function buildSystemPrompt(workouts, measurements, { workoutPlanMode = false } = {}) {
+export function buildSystemPrompt(workouts, measurements, dietContext = {}, { workoutPlanMode = false, dietPlanMode = false } = {}) {
+  const { meals = [], profile = null } = dietContext
   return (
     SYSTEM_PROMPT +
     (workoutPlanMode ? WORKOUT_PLAN_INSTRUCTION : "") +
+    (dietPlanMode ? DIET_PLAN_INSTRUCTION : "") +
     formatDashboardContext(workouts) +
     formatWorkoutsContext(workouts) +
-    formatMeasurementsContext(measurements)
+    formatMeasurementsContext(measurements) +
+    formatDietContext(meals, profile)
   )
 }
 
@@ -296,4 +323,95 @@ Konkretnie: kalorie, makro, co warto zmienić lub utrzymać.
 
 **4. Korekty treningowe**
 Co dostosować: cardio, objętość siłowa, intensywność, regeneracja?`
+}
+
+export function buildMealAnalysisPrompt(meal) {
+  const details = [
+    `Data: ${meal.dateLabel}`,
+    `Typ: ${getMealTypeLabel(meal.mealType)}`,
+    `Nazwa: ${meal.name}`,
+    meal.description?.trim() ? `Opis: ${meal.description.trim()}` : null,
+    `Makro: ${formatMealMacros(meal)}`,
+  ]
+    .filter(Boolean)
+    .join("\n")
+
+  const noteBlock = meal.note?.trim() ? `\nNotatka: ${meal.note.trim()}` : ""
+
+  return `Przeanalizuj mój posiłek w kontekście celu diety, wagi i treningów.
+
+${details}${noteBlock}
+
+Masz dostęp do profilu diety, historii posiłków, pomiarów i dziennika treningowego w kontekście systemowym.
+
+Odpowiedz w 3 sekcjach:
+
+**1. Ocena makro posiłku**
+Czy kalorie i rozkład B/W/T są sensowne na tle mojego celu i reszty dnia?
+
+**2. Jakość żywieniowa**
+Co jest dobrze, co poprawić w składnikach lub porcji?
+
+**3. Rekomendacje**
+Konkretne sugestie na resztę dnia lub podobne posiłki.`
+}
+
+export function buildAllDietAnalysisPrompt() {
+  return `Przeanalizuj moją dietę w kontekście celu, wagi i treningów.
+
+Masz dostęp do profilu diety, historii posiłków, pomiarów i dziennika treningowego w kontekście systemowym.
+
+Odpowiedz w 4 sekcjach:
+
+**1. Realizacja celu**
+Czy kalorie i makro są zgodne z moim celem (masa/redukcja/mini cut)? Jak wygląda średnia dzienna?
+
+**2. Jakość posiłków**
+Co jest dobrze, co powtarza się zbyt często, czego brakuje?
+
+**3. Korekty kaloryczne i makro**
+Konkretne liczby: ile kcal, ile B/W/T dziennie — na podstawie wagi i aktywności.
+
+**4. Plan na najbliższe dni**
+3–5 konkretnych zmian lub posiłków do wprowadzenia.`
+}
+
+export function buildWeekDietAnalysisPrompt(weekMeals, weekLabel) {
+  const summary = weekMeals
+    .map(m => `${m.dateLabel} · ${m.name}: ${formatMealMacros(m)}`)
+    .join("\n")
+
+  return `Przeanalizuj moją dietę z tygodnia ${weekLabel}.
+
+Posiłki:
+${summary}
+
+Masz dostęp do profilu diety, pomiarów i treningów w kontekście systemowym.
+
+Odpowiedz w 4 sekcjach:
+
+**1. Realizacja celu tygodniowego**
+Czy średnie kalorie i makro są zgodne z moim celem?
+
+**2. Jakość posiłków**
+Co jest dobrze, co powtarza się, czego brakuje?
+
+**3. Korekty**
+Konkretne liczby kcal i B/W/T na kolejny tydzień.
+
+**4. Rekomendacje**
+3–5 zmian do wprowadzenia.`
+}
+
+export function buildWeekDietPlanPrompt(goalOverride) {
+  const goalText = goalOverride ? ` na ${goalOverride}` : ""
+  return `Rozpisz mi dietę na ten tydzień${goalText}.
+
+Na podstawie mojej wagi, wzrostu, celu diety i aktywności treningowej z kontekstu:
+1. Oblicz docelowe kalorie i makro (B/W/T) — pokaż obliczenia krok po kroku
+2. Rozpisz jadłospis na 7 dni (śniadanie, obiad, kolacja + przekąski)
+3. Podaj makro dla każdego posiłku
+4. Uwzględnij treningi — więcej węgli w dni treningowe
+
+Bądź konkretny: nazwy produktów, gramy, kalorie.`
 }

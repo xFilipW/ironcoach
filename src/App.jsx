@@ -1,17 +1,24 @@
 import { useState, useRef, lazy, Suspense } from "react"
 import WorkoutList from "./components/WorkoutList"
 import MeasurementsList from "./components/MeasurementsList"
+import DietList from "./components/DietList"
 import AppSidebar from "./components/AppSidebar"
 import TabLoader from "./components/TabLoader"
 import { useWorkouts } from "./hooks/useWorkouts"
 import { useMeasurements } from "./hooks/useMeasurements"
+import { useDiet } from "./hooks/useDiet"
 import {
   buildAnalysisPrompt,
   buildWeekAnalysisPrompt,
   buildDashboardAnalysisPrompt,
   buildMeasurementsAnalysisPrompt,
   buildAllMeasurementsAnalysisPrompt,
+  buildMealAnalysisPrompt,
+  buildAllDietAnalysisPrompt,
+  buildWeekDietAnalysisPrompt,
+  buildWeekDietPlanPrompt,
 } from "./lib/coachPrompts"
+import { getGoalLabel } from "./lib/dietUtils"
 import { Zap, Bot, Menu, X } from "lucide-react"
 
 const WorkoutAnalytics = lazy(() => import("./components/WorkoutAnalytics"))
@@ -32,6 +39,16 @@ export default function App() {
     updateMeasurement,
     deleteMeasurement,
   } = useMeasurements()
+  const {
+    meals,
+    profile: dietProfile,
+    loading: dietLoading,
+    error: dietError,
+    addMeal,
+    updateMeal,
+    deleteMeal,
+    saveProfile,
+  } = useDiet()
   const coachRef = useRef(null)
 
   const sendToCoach = prompt => {
@@ -56,6 +73,14 @@ export default function App() {
     if (await updateMeasurement(measurement)) sendToCoach(analysisPrompt)
   }
 
+  const handleAddMeal = async (meal, analysisPrompt) => {
+    if (await addMeal(meal)) sendToCoach(analysisPrompt)
+  }
+
+  const handleUpdateMeal = async (meal, analysisPrompt) => {
+    if (await updateMeal(meal)) sendToCoach(analysisPrompt)
+  }
+
   const content = {
     workout: (
       <WorkoutList
@@ -77,6 +102,22 @@ export default function App() {
         />
       </Suspense>
     ),
+    diet: (
+      <DietList
+        meals={meals}
+        profile={dietProfile}
+        onAddMeal={handleAddMeal}
+        onUpdateMeal={handleUpdateMeal}
+        onDeleteMeal={deleteMeal}
+        onSaveProfile={saveProfile}
+        onAnalyzeMeal={meal => sendToCoach(buildMealAnalysisPrompt(meal))}
+        onAnalyzeAll={() => sendToCoach(buildAllDietAnalysisPrompt())}
+        onAnalyzeWeek={(weekMeals, weekLabel) =>
+          sendToCoach(buildWeekDietAnalysisPrompt(weekMeals, weekLabel))
+        }
+        onPlanWeek={() => sendToCoach(buildWeekDietPlanPrompt(getGoalLabel(dietProfile.goal).toLowerCase()))}
+      />
+    ),
     measurements: (
       <MeasurementsList
         measurements={measurements}
@@ -93,6 +134,11 @@ export default function App() {
       </Suspense>
     ),
   }
+
+  const isLoading =
+    (workoutsLoading && (tab === "workout" || tab === "analytics")) ||
+    (measurementsLoading && tab === "measurements") ||
+    (dietLoading && tab === "diet")
 
   return (
     <div className="h-screen overflow-hidden bg-background flex items-stretch dark">
@@ -126,10 +172,15 @@ export default function App() {
               {measurementsError}
             </p>
           )}
-          {workoutsLoading && tab === "workout" ? (
-            <p className="text-muted-foreground">Wczytywanie treningów…</p>
-          ) : measurementsLoading && tab === "measurements" ? (
-            <p className="text-muted-foreground">Wczytywanie pomiarów…</p>
+          {dietError && tab === "diet" && (
+            <p className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {dietError}
+            </p>
+          )}
+          {isLoading ? (
+            <p className="text-muted-foreground">
+              {tab === "diet" ? "Wczytywanie diety…" : tab === "measurements" ? "Wczytywanie pomiarów…" : "Wczytywanie treningów…"}
+            </p>
           ) : (
             content[tab]
           )}
@@ -154,11 +205,18 @@ export default function App() {
             ref={coachRef}
             workouts={workouts}
             measurements={measurements}
+            meals={meals}
+            dietProfile={dietProfile}
             addWorkout={addWorkout}
             updateWorkout={updateWorkout}
             deleteWorkout={deleteWorkout}
-            onPlanApplied={result => {
-              if (result.added || result.updated || result.deleted) setTab("workout")
+            addMeal={addMeal}
+            updateMeal={updateMeal}
+            deleteMeal={deleteMeal}
+            onPlanApplied={(result, type) => {
+              if (result.added || result.updated || result.deleted) {
+                setTab(type === "diet" ? "diet" : "workout")
+              }
             }}
           />
         </Suspense>

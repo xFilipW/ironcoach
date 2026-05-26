@@ -27,6 +27,20 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_measurements_date ON measurements(date DESC);
+
+  CREATE TABLE IF NOT EXISTS meals (
+    id INTEGER PRIMARY KEY,
+    data TEXT NOT NULL,
+    date TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_meals_date ON meals(date DESC);
+
+  CREATE TABLE IF NOT EXISTS diet_profile (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    data TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `)
 
 function rowToWorkout(row) {
@@ -97,4 +111,65 @@ export function updateMeasurement(measurement) {
 export function deleteMeasurement(id) {
   const result = db.prepare("DELETE FROM measurements WHERE id = ?").run(id)
   return result.changes > 0
+}
+
+function rowToMeal(row) {
+  return JSON.parse(row.data)
+}
+
+export function getAllMeals() {
+  const rows = db
+    .prepare("SELECT data FROM meals ORDER BY date DESC, id DESC")
+    .all()
+  return rows.map(rowToMeal)
+}
+
+export function insertMeal(meal) {
+  const data = JSON.stringify(meal)
+  db.prepare("INSERT INTO meals (id, data, date) VALUES (?, ?, ?)").run(
+    meal.id,
+    data,
+    meal.date
+  )
+  return meal
+}
+
+export function updateMeal(meal) {
+  const data = JSON.stringify(meal)
+  const result = db
+    .prepare("UPDATE meals SET data = ?, date = ? WHERE id = ?")
+    .run(data, meal.date, meal.id)
+  if (result.changes === 0) return null
+  return meal
+}
+
+export function deleteMeal(id) {
+  const result = db.prepare("DELETE FROM meals WHERE id = ?").run(id)
+  return result.changes > 0
+}
+
+const DEFAULT_DIET_PROFILE = {
+  goal: "maintenance",
+  targetCalories: null,
+  targetProteinG: null,
+  targetCarbsG: null,
+  targetFatG: null,
+  note: "",
+}
+
+export function getDietProfile() {
+  const row = db.prepare("SELECT data FROM diet_profile WHERE id = 1").get()
+  if (!row) return { ...DEFAULT_DIET_PROFILE }
+  return { ...DEFAULT_DIET_PROFILE, ...JSON.parse(row.data) }
+}
+
+export function saveDietProfile(profile) {
+  const data = JSON.stringify(profile)
+  const existing = db.prepare("SELECT id FROM diet_profile WHERE id = 1").get()
+  if (existing) {
+    db.prepare("UPDATE diet_profile SET data = ?, updated_at = datetime('now') WHERE id = 1").run(data)
+  } else {
+    db.prepare("INSERT INTO diet_profile (id, data) VALUES (1, ?)").run(data)
+  }
+  return profile
 }

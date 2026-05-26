@@ -9,6 +9,12 @@ import {
   getAllMeasurements,
   insertMeasurement,
   updateMeasurement,
+  deleteMeal,
+  getAllMeals,
+  insertMeal,
+  updateMeal,
+  getDietProfile,
+  saveDietProfile,
 } from "./db.js"
 
 const app = express()
@@ -101,6 +107,76 @@ app.delete("/api/measurements/:id", (req, res) => {
   res.status(204).end()
 })
 
-app.listen(PORT, () => {
+app.get("/api/meals", (_req, res) => {
+  res.json(getAllMeals())
+})
+
+app.post("/api/meals", (req, res) => {
+  const meal = req.body
+  if (!meal?.id || !meal?.date || !meal?.name?.trim()) {
+    return res.status(400).json({ error: "Nieprawidłowy posiłek" })
+  }
+  try {
+    insertMeal(meal)
+    res.status(201).json(meal)
+  } catch (err) {
+    if (err.code === "SQLITE_CONSTRAINT_PRIMARYKEY") {
+      return res.status(409).json({ error: "Posiłek o tym ID już istnieje" })
+    }
+    console.error(err)
+    res.status(500).json({ error: "Nie udało się zapisać posiłku" })
+  }
+})
+
+app.put("/api/meals/:id", (req, res) => {
+  const id = Number(req.params.id)
+  const meal = { ...req.body, id }
+  if (!meal?.date || !meal?.name?.trim()) {
+    return res.status(400).json({ error: "Nieprawidłowy posiłek" })
+  }
+  const updated = updateMeal(meal)
+  if (!updated) {
+    return res.status(404).json({ error: "Nie znaleziono posiłku" })
+  }
+  res.json(updated)
+})
+
+app.delete("/api/meals/:id", (req, res) => {
+  const id = Number(req.params.id)
+  if (!deleteMeal(id)) {
+    return res.status(404).json({ error: "Nie znaleziono posiłku" })
+  }
+  res.status(204).end()
+})
+
+app.get("/api/diet-profile", (_req, res) => {
+  res.json(getDietProfile())
+})
+
+app.put("/api/diet-profile", (req, res) => {
+  const profile = req.body
+  if (!profile?.goal) {
+    return res.status(400).json({ error: "Nieprawidłowy profil diety" })
+  }
+  try {
+    const saved = saveDietProfile(profile)
+    res.json(saved)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: "Nie udało się zapisać profilu diety" })
+  }
+})
+
+const server = app.listen(PORT, () => {
   console.log(`IronCoach API: http://localhost:${PORT}`)
+})
+
+server.on("error", err => {
+  if (err.code === "EADDRINUSE") {
+    console.error(
+      `Port ${PORT} jest zajęty — prawdopodobnie działa stary serwer API. Zatrzymaj go (Ctrl+C w terminalu z npm run dev) i uruchom ponownie.`
+    )
+    process.exit(1)
+  }
+  throw err
 })

@@ -3,6 +3,7 @@ import { SYSTEM_PROMPT, CHAT_ERRORS } from "./coachPrompts"
 export const GEMINI_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash-lite"
 
 const MAX_OUTPUT_TOKENS = 2048
+const PLAN_OUTPUT_TOKENS = 8192
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 2000
 
@@ -57,7 +58,7 @@ export function toGeminiContents(messages) {
     }))
 }
 
-async function requestGemini(apiKey, model, contents, systemPrompt) {
+async function requestGemini(apiKey, model, contents, systemPrompt, maxOutputTokens) {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -67,7 +68,7 @@ async function requestGemini(apiKey, model, contents, systemPrompt) {
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents,
         generationConfig: {
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          maxOutputTokens,
           ...(model.includes("2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
       }),
@@ -88,7 +89,10 @@ function extractReply(data) {
   return reply || "Brak odpowiedzi."
 }
 
-export async function callGemini(apiKey, contents, systemPrompt = SYSTEM_PROMPT) {
+export { PLAN_OUTPUT_TOKENS }
+
+export async function callGemini(apiKey, contents, systemPrompt = SYSTEM_PROMPT, options = {}) {
+  const maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS
   const models = getGeminiModelChain()
   let lastError = new Error("Nie udało się uzyskać odpowiedzi.")
   let sawQuotaError = false
@@ -99,7 +103,7 @@ export async function callGemini(apiKey, contents, systemPrompt = SYSTEM_PROMPT)
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       if (attempt > 0) await sleep(RETRY_DELAY_MS * attempt)
 
-      const { res, data } = await requestGemini(apiKey, model, contents, systemPrompt)
+      const { res, data } = await requestGemini(apiKey, model, contents, systemPrompt, maxOutputTokens)
 
       if (res.ok) {
         return extractReply(data)
