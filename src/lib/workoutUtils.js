@@ -216,8 +216,6 @@ export function groupWorkoutsByWeek(workouts, { newestFirst = true } = {}) {
     label: formatWeekRange(week.weekStart, week.weekEnd),
   }))
 
-  weeks.sort((a, b) => (newestFirst ? b.weekStart - a.weekStart : a.weekStart - b.weekStart))
-
   for (const week of weeks) {
     week.workouts.sort((a, b) => {
       const da = getWorkoutDate(a)?.getTime() ?? 0
@@ -226,11 +224,31 @@ export function groupWorkoutsByWeek(workouts, { newestFirst = true } = {}) {
     })
   }
 
-  return weeks
+  return sortWeeksByRelevance(weeks)
 }
 
 export function getCurrentWeekKey() {
   return formatInputDate(startOfWeek(new Date(), { weekStartsOn: 1 }))
+}
+
+/** Bieżący tydzień → nadchodzące (rosnąco) → przeszłe (malejąco) */
+export function sortWeeksByRelevance(weeks, currentWeekKey = getCurrentWeekKey()) {
+  const currentStart = startOfWeek(new Date(), { weekStartsOn: 1 }).getTime()
+
+  const tier = week => {
+    if (week.key === currentWeekKey) return 0
+    if (week.weekStart.getTime() > currentStart) return 1
+    return 2
+  }
+
+  return [...weeks].sort((a, b) => {
+    const tierA = tier(a)
+    const tierB = tier(b)
+    if (tierA !== tierB) return tierA - tierB
+    if (tierA === 1) return a.weekStart - b.weekStart
+    if (tierA === 2) return b.weekStart - a.weekStart
+    return 0
+  })
 }
 
 export const STORAGE_KEY = "ironcoach-workouts"

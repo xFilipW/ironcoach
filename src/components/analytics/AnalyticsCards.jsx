@@ -38,7 +38,7 @@ export function EmptyAnalytics() {
       <BarChart3 size={40} className="mx-auto text-muted-foreground mb-4" />
       <p className="font-bold text-lg">Brak danych do analizy</p>
       <p className="text-muted-foreground text-sm mt-2 max-w-md mx-auto">
-        Ukończ kilka treningów z ćwiczeniami — wtedy pojawią się wykresy częstotliwości, objętości i postępów.
+        Dodaj treningi, pomiary ciała lub posiłki — wtedy pojawią się wykresy i statystyki na dashboardzie.
       </p>
     </div>
   )

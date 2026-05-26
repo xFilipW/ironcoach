@@ -98,3 +98,16 @@ export function formatMeasurementsContext(measurements) {
 
   return sections.join("\n")
 }
+
+export function computeWeightTrend(measurements, limit = 14) {
+  if (!measurements?.length) return []
+
+  const sorted = [...measurements].sort((a, b) => new Date(a.date) - new Date(b.date))
+  const recent = sorted.slice(-limit)
+
+  return recent.map(m => ({
+    label: m.dateLabel?.split(",")[0]?.trim() ?? m.dateLabel ?? "—",
+    weightKg: m.weightKg,
+    dateLabel: m.dateLabel,
+  }))
+}

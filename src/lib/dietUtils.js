@@ -6,6 +6,7 @@ import {
   parseInputDateString,
   formatWeekRange,
   getCurrentWeekKey,
+  sortWeeksByRelevance,
 } from "./workoutUtils"
 
 export { getCurrentWeekKey }
@@ -186,7 +187,7 @@ function sortMealsByType(meals) {
   })
 }
 
-export function groupMealsByWeek(meals, { newestFirst = true } = {}) {
+export function groupMealsByWeek(meals) {
   const weekMap = new Map()
 
   for (const meal of meals) {
@@ -245,8 +246,7 @@ export function groupMealsByWeek(meals, { newestFirst = true } = {}) {
     }
   })
 
-  weeks.sort((a, b) => (newestFirst ? b.weekStart - a.weekStart : a.weekStart - b.weekStart))
-  return weeks
+  return sortWeeksByRelevance(weeks)
 }
 
 export function formatDayTotals(totals) {

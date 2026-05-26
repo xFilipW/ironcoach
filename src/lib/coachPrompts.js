@@ -161,21 +161,26 @@ export function buildSystemPrompt(workouts, measurements, dietContext = {}, { wo
 }
 
 export function buildDashboardAnalysisPrompt() {
-  return `Oceń mój dashboard treningowy i daj mi konkretny feedback.
+  return `Oceń mój dashboard (treningi, pomiary ciała i dieta) i daj mi konkretny feedback.
 
-Przeanalizuj dane z kontekstu systemowego i odpowiedz w 4 sekcjach:
+Masz dostęp do pełnego kontekstu: dashboard treningowy, pomiary, dieta, dziennik treningów — korzystaj z nich.
 
-**1. Częstotliwość i objętość**
-Czy trenuję odpowiednio często i dużo jak na swoje cele? Co wyróżnia się na plus lub minus?
+Odpowiedz w 5 sekcjach:
 
-**2. Intensywność, RPE i regeneracja**
-Czy intensywność jest właściwa? Czy widać sygnały przetrenowania lub niedotrenowania? Jak wygląda samopoczucie na tle obciążeń?
+**1. Treningi — częstotliwość i objętość**
+Czy trenuję odpowiednio często i dużo jak na swoje cele?
 
-**3. Postępy w kluczowych ćwiczeniach**
-Jak zmieniały się ciężary i objętość? Czy widać progresję, stagnację lub regres?
+**2. Treningi — intensywność i regeneracja**
+Czy widać sygnały przetrenowania lub niedotrenowania? Jak samopoczucie?
 
-**4. Rekomendacje na najbliższe 2–4 tygodnie**
-3–5 konkretnych rzeczy do zrobienia: co zmienić, dodać lub odpuścić.`
+**3. Pomiary ciała**
+Jak zmienia się waga? Czy kierunek jest zgodny z celem?
+
+**4. Dieta**
+Czy kalorie i makro są zgodne z celem? Jak realizuję plan vs zjedzone?
+
+**5. Rekomendacje na najbliższe 2–4 tygodnie**
+3–5 konkretnych rzeczy do zmiany w treningu, diecie lub regeneracji.`
 }
 
 export function buildWeekAnalysisPrompt(weekWorkouts, weekLabel) {

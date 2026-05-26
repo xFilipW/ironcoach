@@ -98,6 +98,9 @@ export default function App() {
       <Suspense fallback={<TabLoader label="Ładowanie dashboardu…" />}>
         <WorkoutAnalytics
           workouts={workouts}
+          measurements={measurements}
+          meals={meals}
+          dietProfile={dietProfile}
           onAnalyzeDashboard={() => sendToCoach(buildDashboardAnalysisPrompt())}
         />
       </Suspense>
@@ -137,8 +140,8 @@ export default function App() {
 
   const isLoading =
     (workoutsLoading && (tab === "workout" || tab === "analytics")) ||
-    (measurementsLoading && tab === "measurements") ||
-    (dietLoading && tab === "diet")
+    (measurementsLoading && (tab === "measurements" || tab === "analytics")) ||
+    (dietLoading && (tab === "diet" || tab === "analytics"))
 
   return (
     <div className="h-screen overflow-hidden bg-background flex items-stretch dark">
@@ -179,7 +182,13 @@ export default function App() {
           )}
           {isLoading ? (
             <p className="text-muted-foreground">
-              {tab === "diet" ? "Wczytywanie diety…" : tab === "measurements" ? "Wczytywanie pomiarów…" : "Wczytywanie treningów…"}
+              {tab === "analytics"
+                ? "Wczytywanie dashboardu…"
+                : tab === "diet"
+                  ? "Wczytywanie diety…"
+                  : tab === "measurements"
+                    ? "Wczytywanie pomiarów…"
+                    : "Wczytywanie treningów…"}
             </p>
           ) : (
             content[tab]

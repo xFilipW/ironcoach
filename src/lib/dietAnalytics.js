@@ -113,3 +113,29 @@ export function formatDietContext(meals, profile) {
 
   return sections.join("\n")
 }
+
+export function computeDailyCaloriesTrend(meals, days = 14) {
+  if (!meals?.length) return []
+
+  const result = []
+  for (let i = days - 1; i >= 0; i--) {
+    const d = subDays(new Date(), i)
+    const key = format(d, "yyyy-MM-dd")
+    const dayMeals = meals.filter(m => m.date.startsWith(key))
+    if (!dayMeals.length) continue
+
+    const planned = sumMealMacros(dayMeals)
+    const eatenMeals = dayMeals.filter(isMealEaten)
+    const eaten = eatenMeals.length ? sumMealMacros(eatenMeals) : null
+
+    result.push({
+      label: format(d, "d MMM", { locale: pl }),
+      planned: Math.round(planned.calories),
+      eaten: eaten ? Math.round(eaten.calories) : null,
+      mealCount: dayMeals.length,
+      eatenCount: eatenMeals.length,
+    })
+  }
+
+  return result
+}
