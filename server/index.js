@@ -1,5 +1,7 @@
 import express from "express"
 import cors from "cors"
+import { loadEnv } from "./loadEnv.js"
+import { generateGeminiReply } from "./gemini.js"
 import {
   deleteWorkout,
   getAllWorkouts,
@@ -15,7 +17,13 @@ import {
   updateMeal,
   getDietProfile,
   saveDietProfile,
+  deletePersonalRecord,
+  getAllPersonalRecords,
+  insertPersonalRecord,
+  updatePersonalRecord,
 } from "./db.js"
+
+loadEnv()
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -164,6 +172,64 @@ app.put("/api/diet-profile", (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: "Nie udało się zapisać profilu diety" })
+  }
+})
+
+app.get("/api/personal-records", (_req, res) => {
+  res.json(getAllPersonalRecords())
+})
+
+app.post("/api/personal-records", (req, res) => {
+  const record = req.body
+  if (!record?.id || !record?.date || !record?.exerciseName?.trim() || record?.weightKg == null) {
+    return res.status(400).json({ error: "Nieprawidłowy rekord" })
+  }
+  try {
+    insertPersonalRecord(record)
+    res.status(201).json(record)
+  } catch (err) {
+    if (err.code === "SQLITE_CONSTRAINT_PRIMARYKEY") {
+      return res.status(409).json({ error: "Rekord o tym ID już istnieje" })
+    }
+    console.error(err)
+    res.status(500).json({ error: "Nie udało się zapisać rekordu" })
+  }
+})
+
+app.put("/api/personal-records/:id", (req, res) => {
+  const id = Number(req.params.id)
+  const record = { ...req.body, id }
+  if (!record?.date || !record?.exerciseName?.trim() || record?.weightKg == null) {
+    return res.status(400).json({ error: "Nieprawidłowy rekord" })
+  }
+  const updated = updatePersonalRecord(record)
+  if (!updated) {
+    return res.status(404).json({ error: "Nie znaleziono rekordu" })
+  }
+  res.json(updated)
+})
+
+app.delete("/api/personal-records/:id", (req, res) => {
+  const id = Number(req.params.id)
+  if (!deletePersonalRecord(id)) {
+    return res.status(404).json({ error: "Nie znaleziono rekordu" })
+  }
+  res.status(204).end()
+})
+
+app.post("/api/gemini/generate", async (req, res) => {
+  const { contents, systemPrompt, maxOutputTokens } = req.body ?? {}
+  if (!Array.isArray(contents) || !systemPrompt?.trim()) {
+    return res.status(400).json({ error: "Nieprawidłowe żądanie do AI" })
+  }
+
+  try {
+    const reply = await generateGeminiReply(contents, systemPrompt, { maxOutputTokens })
+    res.json({ reply })
+  } catch (err) {
+    const status = err.status ?? 500
+    console.error(err)
+    res.status(status).json({ error: err.message || "Nie udało się uzyskać odpowiedzi AI" })
   }
 })
 

@@ -1,4 +1,4 @@
-import { Bot, User, CalendarPlus, Check, Loader2, UtensilsCrossed } from "lucide-react"
+import { Bot, User, CalendarPlus, Check, Loader2, UtensilsCrossed, Trophy } from "lucide-react"
 import { Button } from "../ui/button"
 import { getEffectiveDietPlan } from "../../lib/dietPlanActions"
 
@@ -18,14 +18,31 @@ export default function ChatMessage({ message, onApplyPlan, applyingPlan }) {
   const hasWorkoutPlan = Boolean(message.workoutPlan?.actions?.length)
   const effectiveDietPlan = getEffectiveDietPlan(message)
   const hasDietPlan = Boolean(effectiveDietPlan?.actions?.length)
-  const hasPlan = hasWorkoutPlan || hasDietPlan
+  const hasPrUpdate = Boolean(message.prUpdate?.actions?.length)
+  const hasPlan = hasWorkoutPlan || hasDietPlan || hasPrUpdate
   const isApplying = applyingPlan && !message.planApplied
 
-  const planSummary = hasWorkoutPlan ? message.workoutPlan.summary : effectiveDietPlan?.summary
-  const applyLabel = hasWorkoutPlan ? "Zastosuj plan w zakładce Trening" : "Dodaj posiłki do diety"
-  const applyingLabel = hasWorkoutPlan ? "Zapisuję w dzienniku…" : "Zapisuję posiłki…"
-  const appliedLabel = hasWorkoutPlan ? "Zastosowano w dzienniku" : "Zastosowano w diecie"
-  const PlanIcon = hasWorkoutPlan ? CalendarPlus : UtensilsCrossed
+  const planSummary = hasWorkoutPlan
+    ? message.workoutPlan.summary
+    : hasDietPlan
+      ? effectiveDietPlan?.summary
+      : message.prUpdate?.summary
+  const applyLabel = hasWorkoutPlan
+    ? "Zastosuj plan w zakładce Trening"
+    : hasDietPlan
+      ? "Dodaj posiłki do diety"
+      : "Zaktualizuj rekordy (PR)"
+  const applyingLabel = hasWorkoutPlan
+    ? "Zapisuję w dzienniku…"
+    : hasDietPlan
+      ? "Zapisuję posiłki…"
+      : "Zapisuję rekordy…"
+  const appliedLabel = hasWorkoutPlan
+    ? "Zastosowano w dzienniku"
+    : hasDietPlan
+      ? "Zastosowano w diecie"
+      : "Zaktualizowano rekordy"
+  const PlanIcon = hasWorkoutPlan ? CalendarPlus : hasDietPlan ? UtensilsCrossed : Trophy
 
   return (
     <div className={`message-enter flex gap-3 mb-4 ${isUser ? "flex-row-reverse" : ""}`}>

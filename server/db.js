@@ -41,6 +41,14 @@ db.exec(`
     data TEXT NOT NULL,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS personal_records (
+    id INTEGER PRIMARY KEY,
+    data TEXT NOT NULL,
+    date TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_personal_records_date ON personal_records(date DESC);
 `)
 
 function rowToWorkout(row) {
@@ -172,4 +180,39 @@ export function saveDietProfile(profile) {
     db.prepare("INSERT INTO diet_profile (id, data) VALUES (1, ?)").run(data)
   }
   return profile
+}
+
+function rowToPersonalRecord(row) {
+  return JSON.parse(row.data)
+}
+
+export function getAllPersonalRecords() {
+  const rows = db
+    .prepare("SELECT data FROM personal_records ORDER BY date DESC, id DESC")
+    .all()
+  return rows.map(rowToPersonalRecord)
+}
+
+export function insertPersonalRecord(record) {
+  const data = JSON.stringify(record)
+  db.prepare("INSERT INTO personal_records (id, data, date) VALUES (?, ?, ?)").run(
+    record.id,
+    data,
+    record.date
+  )
+  return record
+}
+
+export function updatePersonalRecord(record) {
+  const data = JSON.stringify(record)
+  const result = db
+    .prepare("UPDATE personal_records SET data = ?, date = ? WHERE id = ?")
+    .run(data, record.date, record.id)
+  if (result.changes === 0) return null
+  return record
+}
+
+export function deletePersonalRecord(id) {
+  const result = db.prepare("DELETE FROM personal_records WHERE id = ?").run(id)
+  return result.changes > 0
 }

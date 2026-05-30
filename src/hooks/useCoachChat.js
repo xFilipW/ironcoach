@@ -14,23 +14,44 @@ import {
   formatDietApplyResult,
   getEffectiveDietPlan,
 } from "../lib/dietPlanActions"
+import {
+  parsePrUpdateFromReply,
+  applyPrUpdate,
+  formatPrApplyResult,
+} from "../lib/prPlanActions"
+import { buildPrUpdatePlanFromWorkout } from "../lib/prUtils"
 
 const TRUNCATED_SUFFIX = /\*\(Odpowiedź została skrócona[\s\S]*$/i
 
 function parseAssistantReply(rawReply) {
   const workout = parseWorkoutPlanFromReply(rawReply)
   if (workout.plan) {
-    return { displayText: workout.displayText || rawReply, workoutPlan: workout.plan, dietPlan: null }
+    return {
+      displayText: workout.displayText || rawReply,
+      workoutPlan: workout.plan,
+      dietPlan: null,
+      prUpdate: null,
+    }
   }
   const diet = parseDietPlanFromReply(rawReply)
+  if (diet.plan) {
+    return {
+      displayText: diet.displayText || rawReply,
+      workoutPlan: null,
+      dietPlan: diet.plan,
+      prUpdate: null,
+    }
+  }
+  const pr = parsePrUpdateFromReply(rawReply)
   return {
-    displayText: diet.displayText || rawReply,
+    displayText: pr.displayText || rawReply,
     workoutPlan: null,
-    dietPlan: diet.plan,
+    dietPlan: null,
+    prUpdate: pr.plan,
   }
 }
 
-export function useCoachChat(workouts, measurements, dietContext = {}, handlers = {}) {
+export function useCoachChat(workouts, measurements, dietContext = {}, personalRecords = [], handlers = {}) {
   const [messages, setMessages] = useState(INITIAL_MESSAGES)
   const [loading, setLoading] = useState(false)
   const [applyingPlanId, setApplyingPlanId] = useState(null)
@@ -38,14 +59,15 @@ export function useCoachChat(workouts, measurements, dietContext = {}, handlers 
   const workoutsRef = useRef(workouts)
   const measurementsRef = useRef(measurements)
   const dietContextRef = useRef(dietContext)
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+  const personalRecordsRef = useRef(personalRecords)
 
   messagesRef.current = messages
   workoutsRef.current = workouts
   measurementsRef.current = measurements
   dietContextRef.current = dietContext
+  personalRecordsRef.current = personalRecords
 
-  const appendAssistantMessage = (rawReply, { mergeWithPrevious = false } = {}) => {
+  const appendAssistantMessage = (rawReply, { mergeWithPrevious = false, workoutForPr = null } = {}) => {
     let textToParse = rawReply
 
     if (mergeWithPrevious) {
@@ -55,7 +77,11 @@ export function useCoachChat(workouts, measurements, dietContext = {}, handlers 
       }
     }
 
-    const { displayText, workoutPlan, dietPlan } = parseAssistantReply(textToParse)
+    const { displayText, workoutPlan, dietPlan, prUpdate } = parseAssistantReply(textToParse)
+    const clientPrUpdate = workoutForPr
+      ? buildPrUpdatePlanFromWorkout(workoutForPr, personalRecordsRef.current)
+      : null
+    const finalPrUpdate = clientPrUpdate ?? prUpdate
 
     if (mergeWithPrevious) {
       setMessages(prev => {
@@ -75,6 +101,7 @@ export function useCoachChat(workouts, measurements, dietContext = {}, handlers 
               text: displayText || textToParse,
               workoutPlan,
               dietPlan,
+              prUpdate: finalPrUpdate,
               planApplied: false,
             },
           ]
@@ -86,6 +113,7 @@ export function useCoachChat(workouts, measurements, dietContext = {}, handlers 
                 text: displayText || textToParse,
                 workoutPlan: workoutPlan ?? m.workoutPlan,
                 dietPlan: dietPlan ?? m.dietPlan,
+                prUpdate: finalPrUpdate ?? m.prUpdate,
                 planApplied: false,
                 applyResult: undefined,
               }
@@ -103,26 +131,19 @@ export function useCoachChat(workouts, measurements, dietContext = {}, handlers 
         text: displayText || rawReply,
         workoutPlan,
         dietPlan,
+        prUpdate: finalPrUpdate,
         planApplied: false,
       },
     ])
   }
 
-  const sendText = async text => {
+  const sendText = async (text, { workout } = {}) => {
     const trimmed = text?.trim()
     if (!trimmed || loading) return
 
     const userMsg = { id: crypto.randomUUID(), role: "user", text: trimmed }
     setMessages(prev => [...prev, userMsg])
     setLoading(true)
-
-    if (!apiKey) {
-      setTimeout(() => {
-        appendAssistantMessage(CHAT_ERRORS.noApiKey)
-        setLoading(false)
-      }, 600)
-      return
-    }
 
     try {
       const priorMessages = messagesRef.current
@@ -133,15 +154,17 @@ export function useCoachChat(workouts, measurements, dietContext = {}, handlers 
 
       const contents = toGeminiContents([...priorMessages, userMsg])
       const reply = await callGemini(
-        apiKey,
         contents,
-        buildSystemPrompt(workoutsRef.current, measurementsRef.current, dietContextRef.current, {
+        buildSystemPrompt(workoutsRef.current, measurementsRef.current, dietContextRef.current, personalRecordsRef.current, {
           workoutPlanMode,
           dietPlanMode,
         }),
         { maxOutputTokens: planMode ? PLAN_OUTPUT_TOKENS : undefined }
       )
-      appendAssistantMessage(reply, { mergeWithPrevious: isContinue && dietPlanMode })
+      appendAssistantMessage(reply, {
+        mergeWithPrevious: isContinue && dietPlanMode,
+        workoutForPr: workout,
+      })
     } catch (err) {
       appendAssistantMessage(err?.message ? `Błąd: ${err.message}` : CHAT_ERRORS.connection)
     } finally {
@@ -197,6 +220,30 @@ export function useCoachChat(workouts, measurements, dietContext = {}, handlers 
           )
         )
         onPlanApplied?.(result, "diet")
+        return result
+      } finally {
+        setApplyingPlanId(null)
+      }
+    }
+
+    if (msg.prUpdate?.actions?.length) {
+      const { addRecord, updateRecord, onPlanApplied } = handlers
+      if (!addRecord || !updateRecord) return null
+
+      setApplyingPlanId(messageId)
+      try {
+        const result = await applyPrUpdate(msg.prUpdate, personalRecordsRef.current, {
+          addRecord,
+          updateRecord,
+        })
+        const applyResult = formatPrApplyResult(result)
+        const success = result.added > 0 || result.updated > 0
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === messageId ? { ...m, planApplied: success, applyResult } : m
+          )
+        )
+        if (success) onPlanApplied?.(result, "records")
         return result
       } finally {
         setApplyingPlanId(null)

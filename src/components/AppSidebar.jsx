@@ -1,8 +1,9 @@
-import { Dumbbell, Zap, Calculator, ChevronRight, X, BarChart3, Scale, UtensilsCrossed } from "lucide-react"
+import { Dumbbell, Zap, Calculator, ChevronRight, X, BarChart3, Scale, UtensilsCrossed, Trophy } from "lucide-react"
 
 const NAV_ITEMS = [
   { id: "analytics", label: "Dashboard", icon: BarChart3 },
   { id: "workout", label: "Treningi", icon: Dumbbell },
+  { id: "records", label: "Rekordy", icon: Trophy },
   { id: "diet", label: "Dieta", icon: UtensilsCrossed },
   { id: "measurements", label: "Pomiary", icon: Scale },
   { id: "calculator", label: "Kalkulator 1RM", icon: Calculator },

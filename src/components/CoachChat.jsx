@@ -19,12 +19,15 @@ const CoachChat = forwardRef(function CoachChat(
     measurements = [],
     meals = [],
     dietProfile = null,
+    personalRecords = [],
     addWorkout,
     updateWorkout,
     deleteWorkout,
     addMeal,
     updateMeal,
     deleteMeal,
+    addRecord,
+    updateRecord,
     onPlanApplied,
     onClose,
   },
@@ -36,7 +39,18 @@ const CoachChat = forwardRef(function CoachChat(
     workouts,
     measurements,
     dietContext,
-    { addWorkout, updateWorkout, deleteWorkout, addMeal, updateMeal, deleteMeal, onPlanApplied }
+    personalRecords,
+    {
+      addWorkout,
+      updateWorkout,
+      deleteWorkout,
+      addMeal,
+      updateMeal,
+      deleteMeal,
+      addRecord,
+      updateRecord,
+      onPlanApplied,
+    }
   )
   const bottomRef = useScrollToBottom([messages, loading])
 

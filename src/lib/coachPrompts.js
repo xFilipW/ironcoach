@@ -2,6 +2,7 @@ import { getWorkoutStatus } from "./workoutUtils"
 import { formatDashboardContext } from "./workoutAnalytics"
 import { formatMeasurementsContext } from "./measurementAnalytics"
 import { formatDietContext } from "./dietAnalytics"
+import { formatPersonalRecordsContext, formatWorkoutPrComparisonForPrompt } from "./prUtils"
 import { computeBmi } from "./measurementUtils"
 import { getGoalLabel, getMealTypeLabel, formatMealMacros } from "./dietUtils"
 
@@ -26,6 +27,7 @@ Poniżej masz dostęp do czterech źródeł danych użytkownika:
 - **Dziennik treningowy** – lista ukończonych i zaplanowanych treningów z ćwiczeniami, RPE, samopoczuciem i notatkami
 - **Pomiary ciała** – historia pomiarów: waga, wzrost, BMI, tkanka tłuszczowa, obwody
 - **Dieta** – cel (masa, redukcja, mini cut itd.), docelowe kalorie/makro oraz dziennik posiłków z nazwą, opisem i makro
+- **Rekordy (PR)** – zapisane rekordy osobiste: ćwiczenie, ciężar, powtórzenia, RPE, data
 
 Gdy użytkownik pyta o swoje treningi, postępy, wagę, skład ciała, dietę lub historię – zawsze korzystaj z tych danych. Nie mów, że nie masz dostępu do historii, nie proś o ponowne podanie danych. Jeśli danych faktycznie brakuje (np. brak wpisów), powiedz to wprost.
 
@@ -78,11 +80,34 @@ Reguły bloku diet-plan:
 - Obliczenia BMR/TDEE/makro pokaż w tekście; posiłki zapisz w JSON.
 - Nie pomijaj bloku nawet przy długim jadłospisie — skróć wtedy opisy w JSON, nie cały blok.`
 
+export const PR_UPDATE_INSTRUCTION = `
+
+# Rekordy osobiste (PR) — wykrywanie przy analizie treningu
+Masz dostęp do zapisanych rekordów użytkownika w sekcji Rekordy (PR). Gdy analizujesz **ukończony** trening:
+1. Porównaj każde ćwiczenie z treningu z odpowiadającym rekordem (ta sama nazwa / to samo ćwiczenie — np. „Wyciskanie (bench press)" = rekord „Wyciskanie (bench press)").
+2. **Główna reguła PR:** wyższy ciężar (weightKg) przy tej samej lub mniejszej liczbie powtórzeń = nowy PR. Przykład: trening 125 kg × 1 pobija zapisany PR 120 kg × 1 — nawet przy wyższym RPE. Nie pomijaj takiego PR przez szacowany 1RM ani RPE.
+3. Gdy użytkownik nie ma rekordu dla ćwiczenia — pierwszy wynik z treningu też zapisz jako PR (op "add").
+4. Jeśli wykryjesz nowy PR — **pogratuluj** w odpowiedzi tekstowej i zapytaj, czy zaktualizować rekordy w zakładce Rekordy.
+5. NA SAMYM KOŃCU odpowiedzi (gdy jest choć jeden nowy PR) dodaj blok JSON z **wszystkimi** pobitymi ćwiczeniami:
+
+\`\`\`pr-update
+{"summary":"Martwy 200 kg, wycisk 125 kg, przysiad 190 kg","actions":[{"op":"update","recordId":42,"record":{"exerciseName":"Wyciskanie (bench press)","presetId":"bench","weightKg":125,"reps":1,"rpe":10,"date":"2026-05-30"}},{"op":"add","record":{"exerciseName":"Martwy ciąg","presetId":"deadlift","weightKg":200,"reps":1,"rpe":9,"date":"2026-05-30"}}]}
+\`\`\`
+
+Reguły bloku pr-update:
+- Tylko przy analizie ukończonego treningu i wykrytym nowym PR — nie dodawaj przy planach, diecie ani ogólnych pytaniach.
+- Tylko poprawny JSON wewnątrz fence pr-update.
+- actions: tablica operacji "add" | "update" — jedna akcja na każde pobite ćwiczenie.
+- update: **recordId musi być dokładnym numerem z linii „ID: X" w kontekście Rekordów** — nigdy 0, nigdy placeholder (123). Jeśli nie masz pewności co do ID, użyj "add" z pełnym record albo dopasuj po exerciseName.
+- add: gdy użytkownik nie ma jeszcze rekordu dla tego ćwiczenia — bez recordId.
+- record: exerciseName (wymagane, dokładna nazwa jak w treningu), opcjonalnie presetId (bench|squat|deadlift|ohp|row|rdl|frontSquat|pullup|dip|legPress|custom), weightKg (liczba), reps (liczba), rpe (liczba 6–10), date (YYYY-MM-DD z daty treningu), opcjonalnie note.
+- Jeśli nie ma nowego PR — nie dodawaj bloku.`
+
 export const INITIAL_MESSAGES = [
   {
     id: 1,
     role: "assistant",
-    text: "Cześć! Jestem **IronCoach** – Twój trener AI 💪\n\nMogę pomóc Ci z:\n• Planem treningowym dopasowanym do Twoich celów\n• Techniką ćwiczeń i progresją ciężarów\n• Regeneracją i żywieniem\n• Analizą dziennika treningowego, Dashboardu, pomiarów ciała i diety\n• Rozpisaniem jadłospisu na tydzień (masa, redukcja, mini cut)\n\nCzym mogę Ci dziś pomóc?",
+    text: "Cześć! Jestem **IronCoach** – Twój trener AI 💪\n\nMogę pomóc Ci z:\n• Planem treningowym dopasowanym do Twoich celów\n• Techniką ćwiczeń i progresją ciężarów\n• Regeneracją i żywieniem\n• Analizą dziennika treningowego, Dashboardu, pomiarów ciała i diety\n• Wykrywaniem nowych rekordów (PR) i aktualizacją w zakładce Rekordy\n• Rozpisaniem jadłospisu na tydzień (masa, redukcja, mini cut)\n\nCzym mogę Ci dziś pomóc?",
   },
 ]
 
@@ -95,7 +120,8 @@ export const QUICK_PROMPTS = [
 ]
 
 export const CHAT_ERRORS = {
-  noApiKey: "⚠️ Brak klucza API. Ustaw VITE_GEMINI_API_KEY w pliku .env i uruchom ponownie.",
+  noApiKey:
+    "⚠️ Brak klucza API. Ustaw GEMINI_API_KEY w pliku .env i uruchom ponownie serwer (npm run dev).",
   connection: "Błąd połączenia. Spróbuj ponownie.",
   quotaExhausted:
     "Wyczerpano dzienny limit zapytań dla wszystkich dostępnych modeli (np. flash-lite i flash). Limit odświeża się około północy czasu PT — spróbuj jutro lub ustaw inny model w .env.",
@@ -147,16 +173,24 @@ export function formatWorkoutsContext(workouts) {
   return sections.join("\n")
 }
 
-export function buildSystemPrompt(workouts, measurements, dietContext = {}, { workoutPlanMode = false, dietPlanMode = false } = {}) {
+export function buildSystemPrompt(
+  workouts,
+  measurements,
+  dietContext = {},
+  personalRecords = [],
+  { workoutPlanMode = false, dietPlanMode = false } = {}
+) {
   const { meals = [], profile = null } = dietContext
   return (
     SYSTEM_PROMPT +
+    PR_UPDATE_INSTRUCTION +
     (workoutPlanMode ? WORKOUT_PLAN_INSTRUCTION : "") +
     (dietPlanMode ? DIET_PLAN_INSTRUCTION : "") +
     formatDashboardContext(workouts) +
     formatWorkoutsContext(workouts) +
     formatMeasurementsContext(measurements) +
-    formatDietContext(meals, profile)
+    formatDietContext(meals, profile) +
+    formatPersonalRecordsContext(personalRecords)
   )
 }
 
@@ -224,7 +258,7 @@ Maksymalnie 3 konkretne zmiany z uzasadnieniem.
 Co zrobić przed kolejnym tygodniem? Czy potrzeba więcej odpoczynku, roztrenowania, zmiany kolejności jednostek?`
 }
 
-export function buildAnalysisPrompt(workout) {
+export function buildAnalysisPrompt(workout, personalRecords = []) {
   const exerciseList = workout.exercises.map(line => `• ${line}`).join("\n")
   const noteBlock = workout.note?.trim() ? `\n**Notatka:** ${workout.note.trim()}\n` : ""
 
@@ -257,14 +291,17 @@ Czy zakres powtórzeń i intensywność są właściwe? Co ewentualnie zmienić?
 ${noteBlock}
 **Ćwiczenia:**
 ${exerciseList}
+${formatWorkoutPrComparisonForPrompt(workout, personalRecords)}
+
+Porównaj wyniki z moimi zapisanymi rekordami (PR) w kontekście systemowym. PR = wyższy ciężar przy tej samej liczbie powtórzeń (np. 125 kg × 1 > 120 kg × 1). Wymień każde pobite ćwiczenie z listy powyżej i zaproponuj aktualizację w zakładce Rekordy.
 
 Odpowiedz w 3 sekcjach:
 
 **1. Ocena wysiłku i intensywności**
-Czy obciążenie i RPE były właściwe do celu? Czy widać progresję względem poprzednich treningów?
+Czy obciążenie i RPE były właściwe do celu? Czy widać progresję względem poprzednich treningów? Czy padł nowy PR?
 
 **2. Co poszło dobrze**
-Konkretne plusy z tego treningu.
+Konkretne plusy z tego treningu — w tym ewentualne nowe rekordy.
 
 **3. Co poprawić i jak się zregenerować**
 Maksymalnie 3 rzeczy do poprawy następnym razem. Czy potrzeba aktywnej regeneracji, rozciągania, dodatkowego snu lub korekty żywieniowej?${noteBlock ? "\nJeśli notatka sygnalizuje ból lub dyskomfort – uwzględnij to priorytetowo." : ""}`

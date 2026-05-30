@@ -2,11 +2,13 @@ import { useState, useRef, lazy, Suspense } from "react"
 import WorkoutList from "./components/WorkoutList"
 import MeasurementsList from "./components/MeasurementsList"
 import DietList from "./components/DietList"
+import PersonalRecordsList from "./components/PersonalRecordsList"
 import AppSidebar from "./components/AppSidebar"
 import TabLoader from "./components/TabLoader"
 import { useWorkouts } from "./hooks/useWorkouts"
 import { useMeasurements } from "./hooks/useMeasurements"
 import { useDiet } from "./hooks/useDiet"
+import { usePersonalRecords } from "./hooks/usePersonalRecords"
 import {
   buildAnalysisPrompt,
   buildWeekAnalysisPrompt,
@@ -49,20 +51,32 @@ export default function App() {
     deleteMeal,
     saveProfile,
   } = useDiet()
+  const {
+    records,
+    loading: recordsLoading,
+    error: recordsError,
+    addRecord,
+    updateRecord,
+    deleteRecord,
+  } = usePersonalRecords()
   const coachRef = useRef(null)
 
-  const sendToCoach = prompt => {
+  const sendToCoach = (prompt, workout = null) => {
     if (!prompt) return
     setCoachOpen(true)
-    setTimeout(() => coachRef.current?.sendText(prompt), 100)
+    setTimeout(() => coachRef.current?.sendText(prompt, { workout }), 100)
   }
 
   const handleAddWorkout = async (workout, analysisPrompt) => {
-    if (await addWorkout(workout)) sendToCoach(analysisPrompt)
+    if (await addWorkout(workout)) {
+      if (analysisPrompt) sendToCoach(buildAnalysisPrompt(workout, records), workout)
+    }
   }
 
   const handleUpdateWorkout = async (workout, analysisPrompt) => {
-    if (await updateWorkout(workout)) sendToCoach(analysisPrompt)
+    if (await updateWorkout(workout)) {
+      if (analysisPrompt) sendToCoach(buildAnalysisPrompt(workout, records), workout)
+    }
   }
 
   const handleAddMeasurement = async (measurement, analysisPrompt) => {
@@ -88,7 +102,7 @@ export default function App() {
         onAddWorkout={handleAddWorkout}
         onUpdateWorkout={handleUpdateWorkout}
         onDeleteWorkout={deleteWorkout}
-        onAnalyzeWorkout={workout => sendToCoach(buildAnalysisPrompt(workout))}
+        onAnalyzeWorkout={workout => sendToCoach(buildAnalysisPrompt(workout, records), workout)}
         onAnalyzeWeek={(weekWorkouts, weekLabel) =>
           sendToCoach(buildWeekAnalysisPrompt(weekWorkouts, weekLabel))
         }
@@ -131,6 +145,14 @@ export default function App() {
         onAnalyzeAll={() => sendToCoach(buildAllMeasurementsAnalysisPrompt())}
       />
     ),
+    records: (
+      <PersonalRecordsList
+        records={records}
+        onAddRecord={addRecord}
+        onUpdateRecord={updateRecord}
+        onDeleteRecord={deleteRecord}
+      />
+    ),
     calculator: (
       <Suspense fallback={<TabLoader label="Ładowanie kalkulatora…" />}>
         <OneRmCalculator />
@@ -141,7 +163,8 @@ export default function App() {
   const isLoading =
     (workoutsLoading && (tab === "workout" || tab === "analytics")) ||
     (measurementsLoading && (tab === "measurements" || tab === "analytics")) ||
-    (dietLoading && (tab === "diet" || tab === "analytics"))
+    (dietLoading && (tab === "diet" || tab === "analytics")) ||
+    (recordsLoading && tab === "records")
 
   return (
     <div className="h-screen overflow-hidden bg-background flex items-stretch dark">
@@ -180,6 +203,11 @@ export default function App() {
               {dietError}
             </p>
           )}
+          {recordsError && tab === "records" && (
+            <p className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {recordsError}
+            </p>
+          )}
           {isLoading ? (
             <p className="text-muted-foreground">
               {tab === "analytics"
@@ -188,7 +216,9 @@ export default function App() {
                   ? "Wczytywanie diety…"
                   : tab === "measurements"
                     ? "Wczytywanie pomiarów…"
-                    : "Wczytywanie treningów…"}
+                    : tab === "records"
+                      ? "Wczytywanie rekordów…"
+                      : "Wczytywanie treningów…"}
             </p>
           ) : (
             content[tab]
@@ -208,16 +238,19 @@ export default function App() {
             measurements={measurements}
             meals={meals}
             dietProfile={dietProfile}
+            personalRecords={records}
             addWorkout={addWorkout}
             updateWorkout={updateWorkout}
             deleteWorkout={deleteWorkout}
             addMeal={addMeal}
             updateMeal={updateMeal}
             deleteMeal={deleteMeal}
+            addRecord={addRecord}
+            updateRecord={updateRecord}
             onClose={() => setCoachOpen(false)}
             onPlanApplied={(result, type) => {
               if (result.added || result.updated || result.deleted) {
-                setTab(type === "diet" ? "diet" : "workout")
+                setTab(type === "diet" ? "diet" : type === "records" ? "records" : "workout")
               }
             }}
           />
