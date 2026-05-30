@@ -108,11 +108,11 @@ export default function WorkoutList({ workouts, onAddWorkout, onUpdateWorkout, o
         </Button>
       </div>
       <Tabs defaultValue="planned">
-        <TabsList className="h-12 p-1.5 w-full sm:w-auto grid grid-cols-2">
-          <TabsTrigger value="planned" className="px-3 sm:px-5 py-2 text-sm sm:text-base">
+        <TabsList className="h-11 w-full sm:min-w-[320px] p-1">
+          <TabsTrigger value="planned" className="px-4 text-sm sm:text-base">
             Nadchodzące
           </TabsTrigger>
-          <TabsTrigger value="done" className="px-3 sm:px-5 py-2 text-sm sm:text-base">
+          <TabsTrigger value="done" className="px-4 text-sm sm:text-base">
             Ukończone
           </TabsTrigger>
         </TabsList>
