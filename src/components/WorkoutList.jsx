@@ -92,27 +92,27 @@ export default function WorkoutList({ workouts, onAddWorkout, onUpdateWorkout, o
 
   return (
     <div className="space-y-7">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4 min-w-0">
           <div className="w-12 h-12 rounded-md bg-primary flex items-center justify-center shrink-0">
             <Dumbbell size={24} className="text-primary-foreground" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-wider">Treningi</h1>
             <p className="text-muted-foreground text-base mt-0.5">Twój dziennik treningowy</p>
           </div>
         </div>
-        <Button variant="outline" className="gap-2 h-11 px-4 text-base shrink-0" onClick={() => setShowAdd(true)}>
+        <Button variant="outline" className="gap-2 h-11 px-4 text-base w-full sm:w-auto" onClick={() => setShowAdd(true)}>
           <Plus size={18} />
-          Dodaj
+          Dodaj trening
         </Button>
       </div>
       <Tabs defaultValue="planned">
-        <TabsList className="h-12 p-1.5">
-          <TabsTrigger value="planned" className="px-5 py-2 text-base">
+        <TabsList className="h-12 p-1.5 w-full sm:w-auto grid grid-cols-2">
+          <TabsTrigger value="planned" className="px-3 sm:px-5 py-2 text-sm sm:text-base">
             Nadchodzące
           </TabsTrigger>
-          <TabsTrigger value="done" className="px-5 py-2 text-base">
+          <TabsTrigger value="done" className="px-3 sm:px-5 py-2 text-sm sm:text-base">
             Ukończone
           </TabsTrigger>
         </TabsList>

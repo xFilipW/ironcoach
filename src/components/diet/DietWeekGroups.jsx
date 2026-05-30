@@ -60,11 +60,11 @@ export default function DietWeekGroups({
 
         return (
           <div key={week.key} className="space-y-3">
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <button
                 type="button"
                 onClick={() => handleWeekToggle(week)}
-                className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-lg border border-border bg-muted/40 hover:bg-muted/70 transition-colors px-4 py-3"
+                className="flex items-center gap-3 w-full sm:flex-1 sm:min-w-0 text-left rounded-lg border border-border bg-muted/40 hover:bg-muted/70 transition-colors px-4 py-3"
               >
                 <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <CalendarDays size={20} />
@@ -92,7 +92,7 @@ export default function DietWeekGroups({
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="gap-2 shrink-0"
+                  className="gap-2 w-full sm:w-auto shrink-0"
                   onClick={() => onAnalyzeWeek(week.days.flatMap(d => d.meals), week.label)}
                 >
                   <Bot size={16} />

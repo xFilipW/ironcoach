@@ -19,7 +19,7 @@ import {
   buildWeekDietPlanPrompt,
 } from "./lib/coachPrompts"
 import { getGoalLabel } from "./lib/dietUtils"
-import { Zap, Bot, Menu, X } from "lucide-react"
+import { Zap, Bot, Menu } from "lucide-react"
 
 const WorkoutAnalytics = lazy(() => import("./components/WorkoutAnalytics"))
 const OneRmCalculator = lazy(() => import("./components/OneRmCalculator"))
@@ -201,14 +201,6 @@ export default function App() {
       <aside
         className={`fixed lg:static inset-y-0 right-0 z-40 flex flex-col h-full min-h-0 overflow-hidden w-80 xl:w-96 bg-card border-l border-border shrink-0 transition-transform duration-200 ${coachOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}
       >
-        <button
-          type="button"
-          className="absolute top-4 right-4 lg:hidden text-muted-foreground hover:text-foreground"
-          onClick={() => setCoachOpen(false)}
-          aria-label="Zamknij AI Coach"
-        >
-          <X size={18} />
-        </button>
         <Suspense fallback={<TabLoader label="Ładowanie AI Coach…" />}>
           <CoachChat
             ref={coachRef}
@@ -222,6 +214,7 @@ export default function App() {
             addMeal={addMeal}
             updateMeal={updateMeal}
             deleteMeal={deleteMeal}
+            onClose={() => setCoachOpen(false)}
             onPlanApplied={(result, type) => {
               if (result.added || result.updated || result.deleted) {
                 setTab(type === "diet" ? "diet" : "workout")

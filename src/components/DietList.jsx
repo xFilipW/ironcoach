@@ -76,30 +76,30 @@ export default function DietList({
 
   return (
     <div className="space-y-7">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4 min-w-0">
           <div className="w-12 h-12 rounded-md bg-primary flex items-center justify-center shrink-0">
             <UtensilsCrossed size={24} className="text-primary-foreground" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-wider">Dieta</h1>
             <p className="text-muted-foreground text-base mt-0.5">Cel, posiłki i makro</p>
           </div>
         </div>
-        <div className="flex gap-2 shrink-0 flex-wrap">
+        <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:w-auto">
           {onPlanWeek && (
-            <Button variant="secondary" className="gap-2 h-11 px-4 text-base" onClick={onPlanWeek}>
+            <Button variant="secondary" className="gap-2 h-11 px-4 text-base w-full sm:w-auto" onClick={onPlanWeek}>
               <Bot size={18} />
               Plan na tydzień
             </Button>
           )}
           {meals.length > 0 && onAnalyzeAll && (
-            <Button variant="secondary" className="gap-2 h-11 px-4 text-base" onClick={onAnalyzeAll}>
+            <Button variant="secondary" className="gap-2 h-11 px-4 text-base w-full sm:w-auto" onClick={onAnalyzeAll}>
               <Bot size={18} />
               Analizuj w AI
             </Button>
           )}
-          <Button variant="outline" className="gap-2 h-11 px-4 text-base" onClick={() => setShowAdd(true)}>
+          <Button variant="outline" className="gap-2 h-11 px-4 text-base w-full sm:w-auto" onClick={() => setShowAdd(true)}>
             <Plus size={18} />
             Dodaj posiłek
           </Button>
@@ -117,8 +117,8 @@ export default function DietList({
       ) : (
         <Card>
           <CardContent className="px-5 py-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Twój cel</p>
                 <p className="text-xl font-black mt-1">{getGoalLabel(profile.goal)}</p>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-sm text-muted-foreground">
@@ -134,7 +134,7 @@ export default function DietList({
                   <p className="text-sm text-muted-foreground mt-2">{profile.note.trim()}</p>
                 )}
               </div>
-              <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => setShowProfile(true)}>
+              <Button variant="outline" size="sm" className="gap-1.5 shrink-0 self-start" onClick={() => setShowProfile(true)}>
                 <Settings2 size={14} />
                 Edytuj cel
               </Button>

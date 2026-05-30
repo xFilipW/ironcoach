@@ -3,7 +3,7 @@ import { Button } from "./ui/button"
 import { Card } from "./ui/card"
 import { Input } from "./ui/input"
 import { ScrollArea } from "./ui/scroll-area"
-import { Send, Bot, RefreshCw } from "lucide-react"
+import { Send, Bot, RefreshCw, X } from "lucide-react"
 import { QUICK_PROMPTS } from "../lib/coachPrompts"
 import { WORKOUT_PLAN_QUICK_PROMPTS } from "../lib/workoutPlanActions"
 import { DIET_PLAN_QUICK_PROMPTS } from "../lib/dietPlanActions"
@@ -26,6 +26,7 @@ const CoachChat = forwardRef(function CoachChat(
     updateMeal,
     deleteMeal,
     onPlanApplied,
+    onClose,
   },
   ref
 ) {
@@ -62,26 +63,39 @@ const CoachChat = forwardRef(function CoachChat(
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <div className="px-4 py-3 pr-12 lg:pr-4 border-b border-border shrink-0">
+      <div className="px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
+          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center shrink-0">
             <Bot size={14} className="text-primary-foreground" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold uppercase tracking-wide">AI Coach</p>
             <p className="text-[11px] text-muted-foreground">Twój trener AI</p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={clearChat}
-            disabled={loading}
-            aria-label="Wyczyść czat"
-            title="Wyczyść czat"
-          >
-            <RefreshCw size={16} />
-          </Button>
+          <div className="flex items-center shrink-0 -mr-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 lg:h-8 lg:w-8 text-muted-foreground hover:text-foreground touch-manipulation"
+              onClick={clearChat}
+              disabled={loading}
+              aria-label="Wyczyść czat"
+              title="Wyczyść czat"
+            >
+              <RefreshCw className="size-[18px] lg:size-4" strokeWidth={2} />
+            </Button>
+            {onClose && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 lg:hidden text-muted-foreground hover:text-foreground touch-manipulation"
+                onClick={onClose}
+                aria-label="Zamknij AI Coach"
+              >
+                <X className="size-5" strokeWidth={2} />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
       <Card className="flex-1 flex flex-col min-h-0 overflow-hidden rounded-none border-0 shadow-none bg-transparent">

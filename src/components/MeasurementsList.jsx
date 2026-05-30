@@ -36,12 +36,13 @@ function DeltaBadge({ delta, label }) {
 function MeasurementCard({ m, onEdit, onDeleteRequest, onAnalyze }) {
   return (
     <Card>
-      <CardContent className="px-6 py-5">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-            <Scale size={22} />
-          </div>
-          <div className="flex-1 min-w-0">
+      <CardContent className="px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+          <div className="flex items-start gap-4 min-w-0 flex-1">
+            <div className="w-12 h-12 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+              <Scale size={22} />
+            </div>
+            <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-bold text-base">{m.weightKg} kg</p>
               {m.bodyFatPct != null && (
@@ -68,8 +69,9 @@ function MeasurementCard({ m, onEdit, onDeleteRequest, onAnalyze }) {
                 {m.note.trim()}
               </p>
             )}
+            </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
             {onAnalyze && (
               <button
                 type="button"
@@ -152,26 +154,26 @@ export default function MeasurementsList({
 
   return (
     <div className="space-y-7">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4 min-w-0">
           <div className="w-12 h-12 rounded-md bg-primary flex items-center justify-center shrink-0">
             <Scale size={24} className="text-primary-foreground" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-wider">Pomiary</h1>
             <p className="text-muted-foreground text-base mt-0.5">Waga i obwody ciała</p>
           </div>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-col gap-2 w-full sm:flex-row sm:w-auto">
           {measurements.length > 0 && onAnalyzeAll && (
-            <Button variant="secondary" className="gap-2 h-11 px-4 text-base" onClick={onAnalyzeAll}>
+            <Button variant="secondary" className="gap-2 h-11 px-4 text-base w-full sm:w-auto" onClick={onAnalyzeAll}>
               <Bot size={18} />
               Analizuj w AI
             </Button>
           )}
-          <Button variant="outline" className="gap-2 h-11 px-4 text-base" onClick={() => setShowAdd(true)}>
+          <Button variant="outline" className="gap-2 h-11 px-4 text-base w-full sm:w-auto" onClick={() => setShowAdd(true)}>
             <Plus size={18} />
-            Dodaj
+            Dodaj pomiar
           </Button>
         </div>
       </div>

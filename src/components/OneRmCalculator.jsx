@@ -52,11 +52,11 @@ export default function OneRmCalculator() {
   return (
     <div className="space-y-7">
       <div>
-        <div className="flex items-center gap-4 mb-1">
-          <div className="w-12 h-12 rounded-md bg-primary flex items-center justify-center">
+        <div className="flex items-center gap-4 mb-1 min-w-0">
+          <div className="w-12 h-12 rounded-md bg-primary flex items-center justify-center shrink-0">
             <Calculator size={24} className="text-primary-foreground" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-wider">Kalkulator 1RM</h1>
             <p className="text-muted-foreground text-base mt-0.5">
               Epley, Brzycki, Lander i Lombardi — wszystkie wyniki naraz
@@ -66,13 +66,13 @@ export default function OneRmCalculator() {
       </div>
 
       <Card className="bg-muted/30">
-        <CardContent className="pt-6 pb-6">
-          <div className="flex items-center justify-between gap-4 mb-4">
+        <CardContent className="pt-6 pb-6 px-4 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Ćwiczenie</p>
             <select
               value={exerciseId}
               onChange={e => setExerciseId(e.target.value)}
-              className="h-11 min-w-[220px] rounded-md border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-11 w-full sm:min-w-[220px] sm:w-auto rounded-md border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Wybierz ćwiczenie z listy"
             >
               {EXERCISES.map(ex => (
@@ -82,13 +82,13 @@ export default function OneRmCalculator() {
               ))}
             </select>
           </div>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5">
             {EXERCISES.map(ex => (
               <button
                 key={ex.id}
                 type="button"
                 onClick={() => setExerciseId(ex.id)}
-                className={`rounded-lg px-4 py-2.5 text-left transition-all border ${
+                className={`rounded-lg px-3 sm:px-4 py-2.5 text-left transition-all border w-full sm:w-auto ${
                   exerciseId === ex.id
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-card border-border hover:bg-accent text-foreground"
@@ -109,22 +109,22 @@ export default function OneRmCalculator() {
       </Card>
 
       <Card>
-        <CardHeader className="pb-4 px-6 pt-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
+        <CardHeader className="pb-4 px-4 pt-6 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <CardTitle className="text-lg">{exercise.name}</CardTitle>
               <CardDescription className="text-sm">{exercise.subtitle}</CardDescription>
             </div>
             {hasInput && avgRm != null && (
-              <div className="text-right shrink-0">
+              <div className="sm:text-right shrink-0">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Średnia 1RM</p>
-                <p className="text-4xl font-black text-primary leading-none mt-1">{formatKg(avgRm)}</p>
+                <p className="text-3xl sm:text-4xl font-black text-primary leading-none mt-1">{formatKg(avgRm)}</p>
               </div>
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-5 px-6 pb-6">
-          <div className="grid grid-cols-3 gap-4">
+        <CardContent className="space-y-5 px-4 pb-6 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Ciężar (kg)
@@ -201,15 +201,15 @@ export default function OneRmCalculator() {
 
       {summary.length > 1 && (
         <Card className="border-primary/30">
-          <CardHeader className="pb-3 px-6 pt-6">
+          <CardHeader className="pb-3 px-4 pt-6 sm:px-6">
             <div className="flex items-center gap-2">
               <TrendingUp size={18} className="text-primary" />
               <CardTitle className="text-lg">Inne ćwiczenia</CardTitle>
             </div>
             <CardDescription className="text-sm">Średnia ze wszystkich wzorów — kliknij, aby przełączyć</CardDescription>
           </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="flex flex-wrap gap-3">
+          <CardContent className="px-4 pb-6 sm:px-6">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
               {summary
                 .filter(row => row.id !== exerciseId)
                 .map(row => (
@@ -217,7 +217,7 @@ export default function OneRmCalculator() {
                     key={row.id}
                     type="button"
                     onClick={() => setExerciseId(row.id)}
-                    className="rounded-lg bg-muted px-4 py-3 text-left hover:bg-accent transition-colors"
+                    className="rounded-lg bg-muted px-4 py-3 text-left hover:bg-accent transition-colors w-full sm:w-auto"
                   >
                     <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{row.name}</p>
                     <p className="text-lg font-black mt-1">{formatKg(row.avg)}</p>
